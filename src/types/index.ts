@@ -27,3 +27,12 @@ export interface Payment {
   processedAt?: Date;
   createdAt: Date;
 }
+
+export const API_CONFIG = {
+  current: "v2",
+  supported: ["v1", "v2"],
+  deprecated: ["v1"],
+  sunset: {
+    v1: "2025-12-31",
+  },
+};

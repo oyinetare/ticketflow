@@ -2,15 +2,35 @@ import { Router, Request, Response } from "express";
 import { EventService } from "../services/eventService";
 import { TicketService } from "../services/ticketService";
 import { PaymentService } from "../services/paymentService";
+import { API_CONFIG } from "../types";
 
-const router = Router();
+const v1Routes = Router();
 
 const eventService = new EventService();
 const ticketService = new TicketService();
 const paymentService = new PaymentService();
 
+v1Routes.get("/", (req, res) => {
+  res.json({
+    version: "1.0.0",
+    status: "deprecated",
+    // sunset: API_CONFIG.sunset.v1,
+    endpoints: {
+      events: {
+        list: "GET /api/v1/events",
+        create: "POST /api/v1/events",
+        get: "GET /api/v1/events/:id ",
+      },
+      tickets: {
+        purchase: "POST /api/v1/tickets/purchase",
+        get: "GET /api/v1/tickets/user/:userId",
+      },
+    },
+  });
+});
+
 // Event Routes
-router.get("/events", async (req: Request, res: Response) => {
+v1Routes.get("/events", async (req: Request, res: Response) => {
   try {
     const events = await eventService.getAllEvents();
     res.json(events);
@@ -19,7 +39,7 @@ router.get("/events", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/events/:id", async (req: Request, res: Response) => {
+v1Routes.get("/events/:id", async (req: Request, res: Response) => {
   try {
     const event = await eventService.getEventById(req.params.id);
     if (!event) {
@@ -31,7 +51,7 @@ router.get("/events/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/events", async (req: Request, res: Response) => {
+v1Routes.post("/events", async (req: Request, res: Response) => {
   try {
     const event = await eventService.createEvent(req.body);
     res.status(201).json(event);
@@ -41,7 +61,7 @@ router.post("/events", async (req: Request, res: Response) => {
 });
 
 // Ticket Purchase Route (This is where race conditions happen!)
-router.post("/tickets/purchase", async (req: Request, res: Response) => {
+v1Routes.post("/tickets/purchase", async (req: Request, res: Response) => {
   const { eventId, userId } = req.body;
 
   try {
@@ -106,7 +126,7 @@ router.post("/tickets/purchase", async (req: Request, res: Response) => {
 });
 
 // Get user's tickets
-router.get("/tickets/user/:userId", async (req: Request, res: Response) => {
+v1Routes.get("/tickets/user/:userId", async (req: Request, res: Response) => {
   try {
     const tickets = await ticketService.getTicketsByUserId(req.params.userId);
     res.json(tickets);
@@ -116,8 +136,8 @@ router.get("/tickets/user/:userId", async (req: Request, res: Response) => {
 });
 
 // Health check
-router.get("/health", (req: Request, res: Response) => {
+v1Routes.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date() });
 });
 
-export { router };
+export { v1Routes };
