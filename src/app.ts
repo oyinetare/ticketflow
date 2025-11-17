@@ -25,7 +25,7 @@ app.use(idempotencyMiddleware);
 // Routes
 app.get("/", (req, res) => {
   res.json({
-    message: "Pet Health Tracking API",
+    message: "TicketFlow",
     currentVersion: API_CONFIG.current,
     availableVersions: API_CONFIG.supported,
     deprecationNotice: {

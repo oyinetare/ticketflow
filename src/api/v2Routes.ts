@@ -2,6 +2,8 @@ import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { EventService } from "../services/eventService";
 import { TicketService } from "../services/ticketService";
+import { LockService } from "../services/lockService";
+import { paymentQueue } from "../queues/paymentQueue";
 
 const v2Routes = Router();
 
@@ -11,13 +13,16 @@ v2Routes.get("/", (req, res) => {
     status: "current",
     endpoints: {
       events: {
-        list: "GET  /api/events",
-        create: "POST /api/events",
-        get: "GET  /api/events/:id ",
+        list: "GET /api/v2/events",
+        create: "POST /api/v2/events",
+        get: "GET /api/v2/events/:id ",
       },
       tickets: {
-        purchase: "POST /api/tickets/purchase",
-        get: "GET  /api/tickets/user/:userId",
+        purchase: "POST /api/v2/tickets/purchase",
+        status: "GET /api/v2/tickets/:id/status",
+        get: "GET /api/v2/tickets/user/:userId",
+        "queue-stats": "GET /api/v2/admin/queue-stats",
+        health: "GET /api/v2/health",
       },
     },
     features: {

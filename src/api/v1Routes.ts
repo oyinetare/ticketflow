@@ -17,13 +17,13 @@ v1Routes.get("/", (req, res) => {
     // sunset: API_CONFIG.sunset.v1,
     endpoints: {
       events: {
-        list: "GET  /api/events",
-        create: "POST /api/events",
-        get: "GET  /api/events/:id ",
+        list: "GET /api/v1/events",
+        create: "POST /api/v1/events",
+        get: "GET /api/v1/events/:id ",
       },
       tickets: {
-        purchase: "POST /api/tickets/purchase",
-        get: "GET  /api/tickets/user/:userId",
+        purchase: "POST /api/v1/tickets/purchase",
+        get: "GET /api/v1/tickets/user/:userId",
       },
     },
   });
