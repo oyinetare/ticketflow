@@ -1,8 +1,8 @@
 # ticketflow
 
-- [ ] 1-monolith
+- ## [x] 1-monolith
 
-- **flow**
+- ### flow
 
 ```
                   client
@@ -52,7 +52,40 @@
         ticketId, userId, amount, status, processedAt, createdAt,
       - FOREIGN KEY (ticketId) REFERENCES tickets(id)
 
-- **ISSUES**
+- ### ISSUES in design
+
   - Race conditions when checking event availability
-  - processing payment SLOW & causes problems
-  - Using sqlite
+  - Processing payment SLOW & causes problems
+  - Lost tickets when payments fail
+  - Multiple users can buy the same ticket
+  - Database locks cause timeouts
+  - Inconsistent inventory counts
+  - Using sqlite whcih doesnt scale well in distributed systems
+    - different from client/server SQL database engines such as MySQL, Oracle, PostgreSQL, or SQL Server since SQLite is trying to solve a different problem
+    - Client/server SQL database engines strive to implement a shared repository of enterprise data and emphasize **scalability, concurrency, centralization, and control** whereas SQLite strives to provide local data storage for individual applications and devices. SQLite **emphasizes economy, efficiency, reliability, independence, and simplicity.**
+    - SQLite does not compete with client/server databases. SQLite competes with fopen().
+    - SQLite database requires no administration, it works well in devices that must operate without expert human support
+    - Client/server database engines are designed to live inside a lovingly-attended datacenter at the core of the network. SQLite works there too, but SQLite also thrives at the edge of the network, fending for itself while providing fast and reliable data services to applications that would otherwise have dodgy connectivity
+    - SQLite is a good fit for use in "internet of things" devices.
+    - Generally speaking, any site that gets fewer than 100K hits/day should work fine with SQLite
+    - **Reference**: https://sqlite.org/whentouse.html
+
+## [ ] 2-scaling
+
+### Imporovements to design based on issues above
+
+- **Sqlite**
+
+  - **Sqlite nto designed for Client/Server Applications**: If there are many client programs sending SQL to the same database over a network, then use a client/server database engine instead of SQLite. SQLite will work over a network filesystem, but because of the latency associated with most network filesystems, performance will not be great. Also, file locking logic is buggy in many network filesystem implementations (on both Unix and Windows). If file locking does not work correctly, two or more clients might try to modify the same part of the same database at the same time, resulting in corruption. Because this problem results from bugs in the underlying filesystem implementation, there is nothing SQLite can do to prevent it.
+
+  - **High Concurrency**: SQLite supports an unlimited number of simultaneous readers, but it will only allow one writer at any instant in time. For many situations, this is not a problem. Writers queue up. Each application does its database work quickly and moves on, and no lock lasts for more than a few dozen milliseconds. But there are some applications that require more concurrency, and those applications may need to seek a different solution.
+
+- **Proposed solution**
+- Redis for distributed locking to prevent race conditions
+- Bull for Queue-based async processing to improve response times
+- Idempotency to prevent duplicate charges
+- Proper rollback on failures
+
+## [ ] 3 - scalingmicroservices
+
+- move to PostgreSQL
