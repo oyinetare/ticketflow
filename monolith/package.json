@@ -7,7 +7,7 @@
     "dev": "nodemon --watch src --ext ts --exec ts-node src/app.ts",
     "build": "tsc",
     "start": "node dist/app.js",
-    "test:load": "artillery run load-test.yml"
+    "test:load": "artillery run tests/load-test.yml"
   },
   "keywords": [],
   "author": "",

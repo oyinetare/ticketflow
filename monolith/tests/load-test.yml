@@ -1,0 +1,31 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 10
+      arrivalRate: 50 # 50 new users per second
+      name: "Stress test ticket purchases"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "Multiple users buying same event tickets"
+    flow:
+      - get:
+          url: "/api/events"
+          capture:
+            - json: "$[2].id" # Get the comedy show (only 100 tickets)
+              as: "eventId"
+
+      - think: 1 # Small delay
+
+      - post:
+          url: "/api/tickets/purchase"
+          json:
+            eventId: "{{ eventId }}"
+            userId: "user_{{ $randomNumber(1, 1000) }}"
+          expect:
+            - statusCode:
+                - 200 # Success
+                - 400 # No tickets available
+                - 500 # Server error (race condition)
