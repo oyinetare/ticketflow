@@ -1,0 +1,38 @@
+{
+  "name": "ticketflow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TicketFlow - A distributed ticketing system",
+  "scripts": {
+    "build": "tsc --build",
+    "build:clean": "tsc --build --clean",
+    "build:shared": "tsc --build shared",
+    "build:services": "npm run build:shared && tsc --build services/api-gateway services/event-service services/ticket-service services/payment-service",
+    "build:monolith": "npm run build:shared && tsc --build monolith",
+    "dev:api-gateway": "cd services/api-gateway && npm run dev",
+    "dev:event-service": "cd services/event-service && npm run dev",
+    "dev:ticket-service": "cd services/ticket-service && npm run dev",
+    "dev:payment-service": "cd services/payment-service && npm run dev",
+    "dev:monolith": "cd monolith && npm run dev",
+    "install:all": "npm install && cd shared && npm install && cd ../monolith && npm install && cd ../services/api-gateway && npm install && cd ../event-service && npm install && cd ../ticket-service && npm install && cd ../payment-service && npm install",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "test": "echo \"Run tests in individual services\"",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"**/*.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "workspaces": [
+    "shared",
+    "monolith",
+    "services/*"
+  ]
+}
