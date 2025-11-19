@@ -12,7 +12,7 @@ Done with **break and fix it approach** i.e. steps on how requirements are built
   - [1 - Monolith](#1---monolith)
   - [2 - Scaling 1: Queues + Redis Locking + API improvements](#2---scaling-1-queues--redis-locking--api-improvements)
   - [3 - Scaling 2: Microservices](#3---scaling-2-microservices)
-  - [4 — Advanced patterns: Saga & Event Sourcing](#4--advanced-patterns-saga--event-sourcing)
+  - [4 - Advanced patterns: Saga & Event Sourcing](#4--advanced-patterns-saga--event-sourcing)
 - [References](#references)
 
 ---
@@ -21,14 +21,18 @@ Done with **break and fix it approach** i.e. steps on how requirements are built
 
 ## Requirements
 
-## Steps
+## Steps - How it works
 
 - [x] 1 — Monolith
 - [x] 2 — Scaling 1: Queues + Redis Locking + API improvements
 - [x] 3 — Scaling 2: Microservices
-- [ ] 4 — Advanced patterns: Saga & Event Sourcing
+- [ ] 4 - Advanced patterns: Saga & Event Sourcing
 
 ### 1 - Monolith
+
+- what part of the requirements does it solve
+- what problems are introduced
+- architecture diagram
 
 - #### flow
 
@@ -114,10 +118,6 @@ Done with **break and fix it approach** i.e. steps on how requirements are built
 
 - move to PostgreSQL
 
-### 4 - Advanced patterns: Saga & Event Sourcing
-
-## References
-
 - api vaersioning
 - idempotency
   - handler
@@ -136,3 +136,10 @@ Ensures consistent installs across different machines
 Locks specific versions of all dependencies and sub-dependencies
 Speeds up CI/CD builds
 Helps prevent security vulnerabilities by pinning versions
+
+### 4 - Advanced patterns: Saga & Event Sourcing
+
+## References
+
+- [Microservices architecture style](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/microservices)
+- [Learn Docker by Building a Microservice by Dave Kerr](https://dwmkerr.com/learn-docker-by-building-a-microservice/)
