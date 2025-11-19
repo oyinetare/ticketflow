@@ -19,6 +19,50 @@ Done with **break and fix it approach** i.e. steps on how requirements are built
 
 ## How To Run
 
+### Prerequisites
+- **Node.js** (v18+ recommended)
+  ```bash
+  node --version  # should show v18.x.x or higher
+  ```
+- **Docker & Docker Compose**
+  ```bash
+  docker --version         # should show Docker version 20.x.x or higher
+  docker-compose --version # should show docker-compose version 1.29.x or higher
+  ```
+- **npm** or **yarn**
+  ```bash
+  npm --version  # should show 8.x.x or higher
+  ```
+- **cURL** or **HTTPie** (for API testing)
+- **Artillery** (for load testing - installed via npm)
+
+### monolith
+```bash
+# clone the repo
+git clone https://github.com/oyinetare/ticketflow.git
+cd ticketflow
+
+# terminal 1
+cd monolith
+npm install
+docker-compose up -d
+npm run dev
+
+# terminal 2 - test basic functionality
+
+# get all events
+curl http://localhost:3000/api/v2/events
+
+# purchase a ticket
+curl -X POST http://localhost:3000/api/v2/tickets/purchase \
+  -H "Content-Type: application/json" \
+  -d '{"eventId": "3", "userId": "test-user"}'
+
+# stop docker
+docker-compose down
+```
+### microservices
+
 ## Requirements
 
 ## Steps - How it works
