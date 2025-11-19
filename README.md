@@ -1,20 +1,36 @@
-- api vaersioning
-- idempotency
-  - handler
-  - if not POST, then next
-  - get idempotency key from redis cache or generate if one doesnt exist
-    - Generate key based on user, endpoint, and request body
-  - check for cached response with idempotency key
-  - store original json method using redis cache
-  - ovveride json method to cache response
-  - attach key to request for use in handlers
-- links
+# Ticketflow
 
-# ticketflow
+Playground event ticketing distributed system for browsing events, purchase tickets, and process payments.
 
-- ## [x] 1-monolith
+Done with **break and fix it approach** i.e. steps on how requirements are built, what issues they solve and how it works starting with a monolith and gradually breaking it into distributed components progressively.
 
-- ### flow
+## Table of Contents
+
+- [How to run](#how-to-run)
+- [Requirements](#requirements)
+- [Steps - How it works](#steps)
+  - [Monolith](#1---monolith)
+  - [Queues + Redis Locking + API improvements](#2---scaling-1-queues--redis-locking--api-improvements)
+  - [Microservices](#3---scaling-2-microservices)
+  - [Advanced patterns: Saga & Event Sourcing](#4--advanced-patterns-saga--event-sourcing)
+- [References](#references)
+
+---
+
+## How To Run
+
+## Requirements
+
+## Steps
+
+- [x] 1 — Monolith
+- [x] 2 —
+- [x] 3 — Microservices
+- [ ] 4 — Advanced patterns: Saga & Event Sourcing
+
+- ### 1 - monolith
+
+- #### flow
 
 ```
                   client
@@ -42,7 +58,6 @@
 - getTicketsByUserId
 
 - **REST API endpoints**
-
   - /api/events
     - GET / # get all events
     - GET /:id # get single event by id
@@ -52,7 +67,6 @@
     - GET /user/:userId # get users tickets
 
 - **sqlite db**
-
   - TABLES
     - events
       - id, name, venue, date, totalTickets, availableTickets, price, createdAt
@@ -64,8 +78,7 @@
         ticketId, userId, amount, status, processedAt, createdAt,
       - FOREIGN KEY (ticketId) REFERENCES tickets(id)
 
-- ### ISSUES in design
-
+- #### ISSUES in design
   - Race conditions when checking event availability
   - Processing payment SLOW & causes problems
   - Lost tickets when payments fail
@@ -82,12 +95,11 @@
     - Generally speaking, any site that gets fewer than 100K hits/day should work fine with SQLite
     - **Reference**: https://sqlite.org/whentouse.html
 
-## [ ] 2-scaling
+### 2 - Scaling 1: Queues + Redis Locking + API improvements
 
-### Imporovements to design based on issues above
+#### Imporovements to design based on issues above
 
 - **Sqlite**
-
   - **Sqlite nto designed for Client/Server Applications**: If there are many client programs sending SQL to the same database over a network, then use a client/server database engine instead of SQLite. SQLite will work over a network filesystem, but because of the latency associated with most network filesystems, performance will not be great. Also, file locking logic is buggy in many network filesystem implementations (on both Unix and Windows). If file locking does not work correctly, two or more clients might try to modify the same part of the same database at the same time, resulting in corruption. Because this problem results from bugs in the underlying filesystem implementation, there is nothing SQLite can do to prevent it.
 
   - **High Concurrency**: SQLite supports an unlimited number of simultaneous readers, but it will only allow one writer at any instant in time. For many situations, this is not a problem. Writers queue up. Each application does its database work quickly and moves on, and no lock lasts for more than a few dozen milliseconds. But there are some applications that require more concurrency, and those applications may need to seek a different solution.
@@ -98,6 +110,29 @@
 - Idempotency to prevent duplicate charges
 - Proper rollback on failures
 
-## [ ] 3 - scalingmicroservices
+### 3 - Scaling 2: Microservices
 
 - move to PostgreSQL
+
+### 4 - Advanced patterns: Saga & Event Sourcing
+
+## References
+
+- api vaersioning
+- idempotency
+  - handler
+  - if not POST, then next
+  - get idempotency key from redis cache or generate if one doesnt exist
+    - Generate key based on user, endpoint, and request body
+  - check for cached response with idempotency key
+  - store original json method using redis cache
+  - ovveride json method to cache response
+  - attach key to request for use in handlers
+- links
+
+The lockfile is important because it:
+
+Ensures consistent installs across different machines
+Locks specific versions of all dependencies and sub-dependencies
+Speeds up CI/CD builds
+Helps prevent security vulnerabilities by pinning versions
