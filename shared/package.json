@@ -1,0 +1,16 @@
+{
+  "name": "@ticketflow/shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities for TicketFlow",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,3 +1,15 @@
+- api vaersioning
+- idempotency
+  - handler
+  - if not POST, then next
+  - get idempotency key from redis cache or generate if one doesnt exist
+    - Generate key based on user, endpoint, and request body
+  - check for cached response with idempotency key
+  - store original json method using redis cache
+  - ovveride json method to cache response
+  - attach key to request for use in handlers
+- links
+
 # ticketflow
 
 - ## [x] 1-monolith

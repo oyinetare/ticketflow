@@ -1,36 +1,38 @@
 {
   "name": "ticketflow",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "TicketFlow - A distributed ticketing system",
   "scripts": {
-    "dev": "nodemon --watch src --ext ts --exec ts-node src/app.ts",
-    "build": "tsc",
-    "start": "node dist/app.js",
-    "test:load": "artillery run load-test.yml"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "axios": "^1.13.2",
-    "bull": "^4.16.5",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "ioredis": "^5.8.2",
-    "sqlite3": "^5.1.7",
-    "uuid": "^13.0.0"
+    "build": "tsc --build",
+    "build:clean": "tsc --build --clean",
+    "build:shared": "tsc --build shared",
+    "build:services": "npm run build:shared && tsc --build services/api-gateway services/event-service services/ticket-service services/payment-service",
+    "build:monolith": "npm run build:shared && tsc --build monolith",
+    "dev:api-gateway": "cd services/api-gateway && npm run dev",
+    "dev:event-service": "cd services/event-service && npm run dev",
+    "dev:ticket-service": "cd services/ticket-service && npm run dev",
+    "dev:payment-service": "cd services/payment-service && npm run dev",
+    "dev:monolith": "cd monolith && npm run dev",
+    "install:all": "npm install && cd shared && npm install && cd ../monolith && npm install && cd ../services/api-gateway && npm install && cd ../event-service && npm install && cd ../ticket-service && npm install && cd ../payment-service && npm install",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "test": "echo \"Run tests in individual services\"",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"**/*.ts\""
   },
   "devDependencies": {
-    "@types/bull": "^3.15.9",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.5",
-    "@types/node": "^24.10.1",
-    "@types/sqlite3": "^3.1.11",
-    "@types/uuid": "^10.0.0",
-    "artillery": "^2.0.26",
-    "nodemon": "^3.1.11",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
-  }
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "workspaces": [
+    "shared",
+    "monolith",
+    "services/*"
+  ]
 }

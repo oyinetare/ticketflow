@@ -1,4 +1,5 @@
 services:
+  # Redis
   redis:
     image: redis:7-alpine
     container_name: ticketflow-redis
@@ -6,13 +7,140 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    networks:
+      - ticketflow-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
 
+  # PostgreSQL for Event Service
+  postgres-events:
+    image: postgres:15-alpine
+    container_name: ticketflow-postgres-events
+    environment:
+      POSTGRES_DB: events
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_events:/var/lib/postgresql/data
+    networks:
+      - ticketflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # PostgreSQL for Payment Service
+  postgres-payments:
+    image: postgres:15-alpine
+    container_name: ticketflow-postgres-payments
+    environment:
+      POSTGRES_DB: payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_payments:/var/lib/postgresql/data
+    networks:
+      - ticketflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Event Service
+  event-service:
+    build:
+      context: .
+      dockerfile: ./services/event-service/Dockerfile
+    container_name: ticketflow-event-service
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:postgres@postgres-events:5432/events
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres-events:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ticketflow-network
+    restart: unless-stopped
+
+  # Ticket Service
+  ticket-service:
+    build:
+      context: .
+      dockerfile: ./services/ticket-service/Dockerfile
+    container_name: ticketflow-ticket-service
+    environment:
+      PORT: 3002
+      REDIS_URL: redis://redis:6379
+      EVENT_SERVICE_URL: http://event-service:3001
+      PAYMENT_SERVICE_URL: http://payment-service:3003
+    ports:
+      - "3002:3002"
+    depends_on:
+      redis:
+        condition: service_healthy
+      event-service:
+        condition: service_started
+    networks:
+      - ticketflow-network
+    restart: unless-stopped
+
+  # Payment Service
+  payment-service:
+    build:
+      context: .
+      dockerfile: ./services/payment-service/Dockerfile
+    container_name: ticketflow-payment-service
+    environment:
+      PORT: 3003
+      DATABASE_URL: postgresql://postgres:postgres@postgres-payments:5432/payments
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres-payments:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ticketflow-network
+    restart: unless-stopped
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./services/api-gateway/Dockerfile
+    container_name: ticketflow-api-gateway
+    environment:
+      PORT: 3000
+      EVENT_SERVICE_URL: http://event-service:3001
+      TICKET_SERVICE_URL: http://ticket-service:3002
+      PAYMENT_SERVICE_URL: http://payment-service:3003
+    ports:
+      - "3000:3000"
+    depends_on:
+      - event-service
+      - ticket-service
+      - payment-service
+    networks:
+      - ticketflow-network
+    restart: unless-stopped
+
+  # Redis Commander (UI)
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: ticketflow-redis-ui
@@ -22,7 +150,50 @@ services:
       - "8081:8081"
     depends_on:
       - redis
+    networks:
+      - ticketflow-network
+    profiles:
+      - monitoring
+
+  # Prometheus (Monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ticketflow-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - ticketflow-network
+    profiles:
+      - monitoring
+
+  # Grafana (Dashboards)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ticketflow-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - "3030:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - ticketflow-network
+    profiles:
+      - monitoring
+
+networks:
+  ticketflow-network:
+    driver: bridge
 
 volumes:
   redis_data:
-    driver: local
+  postgres_events:
+  postgres_payments:
+  prometheus_data:
+  grafana_data:
