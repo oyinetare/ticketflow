@@ -24,11 +24,11 @@ Done with **break and fix it approach** i.e. steps on how requirements are built
 ## Steps
 
 - [x] 1 — Monolith
-- [x] 2 —
-- [x] 3 — Microservices
+- [x] 2 — Scaling 1: Queues + Redis Locking + API improvements
+- [x] 3 — Scaling 2: Microservices
 - [ ] 4 — Advanced patterns: Saga & Event Sourcing
 
-- ### 1 - monolith
+### 1 - Monolith
 
 - #### flow
 
