@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch index.ts",
+    "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test": "jest",
     "lint": "eslint . --ext .ts"
@@ -16,7 +16,7 @@
     "dotenv": "^16.0.0",
     "express": "^4.18.0",
     "ioredis": "^5.8.2",
-    "pg": "^8.11.0",
+    "pg": "^8.16.3",
     "redis": "^4.6.0",
     "uuid": "^13.0.0"
   },

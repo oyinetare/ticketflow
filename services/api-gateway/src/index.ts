@@ -5,7 +5,6 @@ import {
 } from "http-proxy-middleware";
 import axios from "axios";
 import CircuitBreaker from "opossum";
-import { Request, Response, NextFunction } from "express";
 
 const app = express();
 app.use(express.json());

@@ -18,7 +18,7 @@ export class LockService {
       console.log("Connected to Redis for locking");
     });
 
-    this.redis.on("error", (err) => {
+    this.redis.on("error", (err: any) => {
       console.error("Redis connection error:", err);
     });
   }
