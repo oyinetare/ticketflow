@@ -9,10 +9,10 @@ Done with **break and fix it approach** i.e. steps on how requirements are built
 - [How to run](#how-to-run)
 - [Requirements](#requirements)
 - [Steps - How it works](#steps)
-  - [Monolith](#1---monolith)
-  - [Queues + Redis Locking + API improvements](#2---scaling-1-queues--redis-locking--api-improvements)
-  - [Microservices](#3---scaling-2-microservices)
-  - [Advanced patterns: Saga & Event Sourcing](#4--advanced-patterns-saga--event-sourcing)
+  - [1 - Monolith](#1---monolith)
+  - [2 - Scaling 1: Queues + Redis Locking + API improvements](#2---scaling-1-queues--redis-locking--api-improvements)
+  - [3 - Scaling 2: Microservices](#3---scaling-2-microservices)
+  - [4 — Advanced patterns: Saga & Event Sourcing](#4--advanced-patterns-saga--event-sourcing)
 - [References](#references)
 
 ---
