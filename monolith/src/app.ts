@@ -3,7 +3,7 @@ import cors from "cors";
 import { v1Routes } from "./api/v1Routes";
 import { v2Routes } from "./api/v2Routes";
 import errorHandler, { notFoundHandler } from "./middleware/errorHandler";
-import { API_CONFIG } from "./types";
+import { API_CONFIG } from "@ticketflow/shared/types";
 import { idempotencyMiddleware } from "./middleware/idempotency";
 
 const app = express();

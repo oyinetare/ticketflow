@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/database";
-import { Payment } from "../types";
+import { Payment } from "@ticketflow/shared/types";
 
 export class PaymentService {
   async processPayment(

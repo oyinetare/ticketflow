@@ -3,7 +3,7 @@ import { Request } from "express";
 import { createHash } from "crypto";
 
 export class IdempotencyService {
-  private redis: Redis;
+  private redis: Redis.Redis;
   private ttl = 86400; // 24 hrs
 
   constructor() {

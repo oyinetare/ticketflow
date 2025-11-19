@@ -1,5 +1,5 @@
 {
-  "name": "ticketflow",
+  "name": "ticketflow-monolith",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@ticketflow/shared": "file:../shared",
     "axios": "^1.13.2",
     "bull": "^4.16.5",
     "cors": "^2.8.5",

@@ -1,7 +1,7 @@
 import Redis from "ioredis";
 
 export class LockService {
-  private redis: Redis;
+  private redis: Redis.Redis;
   private lockTTL: number = 30000; // 30 seconds
 
   constructor() {

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { API_CONFIG } from "../types";
+import { API_CONFIG } from "@ticketflow/shared/types";
 // import { logger } from "./requestLogger";
 
 export const notFoundHandler = (req: Request, res: Response) => {

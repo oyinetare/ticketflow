@@ -2,7 +2,6 @@ import { Router, Request, Response } from "express";
 import { EventService } from "../services/eventService";
 import { TicketService } from "../services/ticketService";
 import { PaymentService } from "../services/paymentService";
-import { API_CONFIG } from "../types";
 
 const v1Routes = Router();
 

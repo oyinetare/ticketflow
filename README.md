@@ -142,4 +142,4 @@ Helps prevent security vulnerabilities by pinning versions
 ## References
 
 - [Microservices architecture style](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/microservices)
-- [Learn Docker by Building a Microservice by Dave Kerr](https://dwmkerr.com/learn-docker-by-building-a-microservice/)
+- [Learn Docker by building a Microservice by Dave Kerr](https://dwmkerr.com/learn-docker-by-building-a-microservice/)

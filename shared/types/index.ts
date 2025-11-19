@@ -18,7 +18,7 @@ export interface Ticket {
   userId: string;
   purchaseDate: Date;
   price: number;
-  status: "reserved" | "confirmed" | "cancelled";
+  status: "pending" | "reserved" | "confirmed" | "cancelled";
   paymentId?: string;
 }
 
@@ -67,3 +67,12 @@ export interface PaymentCompletedEvent {
   ticketId: string;
   status: "completed" | "failed";
 }
+
+export const API_CONFIG = {
+  current: "v2",
+  supported: ["v1", "v2"],
+  deprecated: ["v1"],
+  sunset: {
+    v1: "2025-12-31",
+  },
+};
