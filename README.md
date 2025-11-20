@@ -76,7 +76,7 @@ docker-compose down
 	- View event details
 	- Create event
 
-2. Confirm ticket purchase
+2. Ticket purchasing
 	- Purchase event tickets
 	- Reserve tickets (prevent others from buying same tickets)
 	- Process payment
@@ -120,77 +120,190 @@ docker-compose down
 
 ### 1 - Monolith
 
-- folder structure
+<!-- - folder structure
 - architecture diagram
 - what part of the requirements does it solve
-- what problems are introduced, leading up to next section
+- what problems are introduced, leading up to next sectio -->
 
-- #### flow
+#### Architecture Diagram
 
 ```
-                  client
-                    |
-                    |
-                    |
-          /api (/events, /tickets)
-                    |
-                    |
-                    |
-                services
-                    |
-                    |
-                    |
-                sqlite db
+	  client
+		|
+ API (/api/events, /api/tickets)
+		|
+	services (event service, payment service, ticket service)
+		|
+	sqlite db
 ```
 
-- event
+#### Core Entities
+
+- Event
+- Ticket
+- Payment
+
+```typescript
+export interface Event {
+  id: string;
+  name: string;
+  venue: string;
+  date: Date;
+  totalTickets: number;
+  availableTickets: number;
+  price: number;
+  createdAt: Date;
+}
+
+export interface Ticket {
+  id: string;
+  eventId: string;
+  userId: string;
+  purchaseDate: Date;
+  price: number;
+  status: "pending" | "confirmed" | "cancelled";
+}
+
+export interface Payment {
+  id: string;
+  ticketId: string;
+  userId: string;
+  amount: number;
+  status: "pending" | "completed" | "failed";
+  processedAt?: Date;
+  createdAt: Date;
+}
+```
+
+#### DB
+
+```SQL
+TABLE events (
+	id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
+	venue TEXT NOT NULL,
+	date TEXT NOT NULL,
+	totalTickets INTEGER NOT NULL,
+	availableTickets INTEGER NOT NULL,
+	price REAL NOT NULL,
+	createdAt TEXT NOT NULL
+)
+
+TABLE tickets (
+	id TEXT PRIMARY KEY,
+	eventId TEXT NOT NULL,
+	userId TEXT NOT NULL,
+	purchaseDate TEXT NOT NULL,
+	price REAL NOT NULL,
+	status TEXT NOT NULL,
+	FOREIGN KEY (eventId) REFERENCES events(id)
+)
+
+TABLE payments (
+	id TEXT PRIMARY KEY,
+	ticketId TEXT NOT NULL,
+	userId TEXT NOT NULL,
+	amount REAL NOT NULL,
+	status TEXT NOT NULL,
+	processedAt TEXT,
+	createdAt TEXT NOT NULL,
+	FOREIGN KEY (ticketId) REFERENCES tickets(id)
+)
+```
+
+#### API or System Interface
+
+```bash
+GET  /api/events                # get all events
+GET  /api/events/:id            # get single event by id
+POST /api/events                # create event
+POST /api/tickets/purchase      # purchase ticket
+GET  /api/tickets/user/:userId  # get users tickets
+```
+
+#### Services
+
+- Event Service
+- Payment Service
+- Ticket Service
+
+#### Flow: What part of the requirements does it solve
+- simple Express app
+	- Middleware
+		- cors
+		- express.json(), so that app can read JSON data sent from the client (like in POST or PUT requests) and make it available in req. body. Without it, Express cannot understand JSON data in requests [ExpressJS express.json() Function](https://www.geeksforgeeks.org/web-tech/express-js-express-json-function/)
+		- logging middleware
+		- error handler
+	- init db
+- Event management: View all avaialable events (search events) + View event details +  Create event
   - getAllEvents, getEventById, createEvent
-- purchasing ticket
-  - 1. check event availability **ISSUE**: causes RACE CONDITION
-  - 2. create ticket
-  - 3. process payment **ISSUE**: SLOW & causes problems
-  - 4. Update ticket status & inventory
-- getTicketsByUserId
+- Ticket purchasing: Purchase event tickets + Process payment + Confirm ticket
+  1. check event availability **ISSUE**: causes RACE CONDITION
+  2. create ticket
+  3. process payment **ISSUE**: SLOW & causes problems
+  4. Update ticket status & inventorypurchase
 
-- **REST API endpoints**
-  - /api/events
-    - GET / # get all events
-    - GET /:id # get single event by id
-    - POST / # create event
-  - /api/tickets
-    - POST /purchase # purchase ticket
-    - GET /user/:userId # get users tickets
+#### Tech Stack used here
+- Node.js
+- Sqlite for db
 
-- **sqlite db**
-  - TABLES
-    - events
-      - id, name, venue, date, totalTickets, availableTickets, price, createdAt
-    - tickets
-      - id, eventId, userId, purchaseDate, price, status
-      - FOREIGN KEY (eventId) REFERENCES events(id)
-    - payments
-      - id,
-        ticketId, userId, amount, status, processedAt, createdAt,
-      - FOREIGN KEY (ticketId) REFERENCES tickets(id)
+#### Notes
+- using nouns for resource names & plural nouns to name collection URIs., i.e.  `/events` instead of `/create-events`. The verbal action on a URI is already implied by the HTTP `GET`, `POST`, `PUT`, `PATCH`, and `DELETE` methods
+- relationships kept simple and flexible
+- no API versioning for now
+-  Interface types dont mirror the internal structure of db, so theres less risk of increasing the attack surface and might lead to data leakage in API and  API is an abstraction of the database
+- Implement asynchronous methods in services
 
-- #### ISSUES in design
-  - Race conditions when checking event availability
-  - Processing payment SLOW & causes problems
-  - Lost tickets when payments fail
-  - Multiple users can buy the same ticket
-  - Database locks cause timeouts
-  - Inconsistent inventory counts
-  - Using sqlite whcih doesnt scale well in distributed systems
-    - different from client/server SQL database engines such as MySQL, Oracle, PostgreSQL, or SQL Server since SQLite is trying to solve a different problem
-    - Client/server SQL database engines strive to implement a shared repository of enterprise data and emphasize **scalability, concurrency, centralization, and control** whereas SQLite strives to provide local data storage for individual applications and devices. SQLite **emphasizes economy, efficiency, reliability, independence, and simplicity.**
-    - SQLite does not compete with client/server databases. SQLite competes with fopen().
-    - SQLite database requires no administration, it works well in devices that must operate without expert human support
-    - Client/server database engines are designed to live inside a lovingly-attended datacenter at the core of the network. SQLite works there too, but SQLite also thrives at the edge of the network, fending for itself while providing fast and reliable data services to applications that would otherwise have dodgy connectivity
-    - SQLite is a good fit for use in "internet of things" devices.
-    - Generally speaking, any site that gets fewer than 100K hits/day should work fine with SQLite
-    - **Reference**: https://sqlite.org/whentouse.html
+#### Issues in design i.e. what problems are introduced, leading up to next section
+ - Race conditions when checking event availability
+- Processing payment SLOW & causes problems
+- Lost tickets when payments fail
+- Multiple users can buy the same ticket
+- Database locks cause timeouts
+- Inconsistent inventory counts
+- Using sqlite whcih doesnt scale well in distributed systems
+- different from client/server SQL database engines such as MySQL, Oracle, PostgreSQL, or SQL Server since SQLite is trying to solve a different problem
+- Client/server SQL database engines strive to implement a shared repository of enterprise data and emphasize **scalability, concurrency, centralization, and control** whereas SQLite strives to provide local data storage for individual applications and devices. SQLite **emphasizes economy, efficiency, reliability, independence, and simplicity.**
+- SQLite does not compete with client/server databases. SQLite competes with fopen().
+- SQLite database requires no administration, it works well in devices that must operate without expert human support
+- Client/server database engines are designed to live inside a lovingly-attended datacenter at the core of the network. SQLite works there too, but SQLite also thrives at the edge of the network, fending for itself while providing fast and reliable data services to applications that would otherwise have dodgy connectivity
+- SQLite is a good fit for use in "internet of things" devices.
+- Generally speaking, any site that gets fewer than 100K hits/day should work fine with SQLite
+- **Reference**: https://sqlite.org/whentouse.html
+
+---
 
 ### 2 - Scaling 1: Queues + Redis Locking + API improvements
+
+
+## ** How do we improve the booking experience by reserving tickets?: Dealing w contention
+- pessimistic locking
+- status & expiration time with cron
+- mpicit status with tatus and time expiration
+- distirbuted lock with TTL
+
+## Scaling reads: How is the view API going to scale to support 10s of millions of concurrent requests during popular events?
+- cachign, lb, horizontal scaling
+
+## ** Real time updates; How will the system ensure a good user experience during high-demand events with millions simultaneously booking tickets?
+- SSE for real time seat updates
+- Virtual waiting queue for xtrmemly popular events
+
+## ** How can you improve search to ensure we meet our low latency requirements?
+- indexinfg & sql qurery ptimization
+- full-text idnexes in db
+- se a full text  search engine liem elastic db
+
+## How can you speed up frequently repeated search queries and reduce load on our search infrastructure?
+- implement caching trategies using redis and memcached
+- impoklement query result caching and edge caching techniques
+
+## API improvement
+- Implement asynchronous methods
+- Implement data pagination and filtering
+- Implement versioning
+- HATEOS link
+
 
 #### Imporovements to design based on issues above
 
@@ -209,6 +322,11 @@ docker-compose down
 
 - move to PostgreSQL
 
+
+- Implement asynchronous methods
+- Implement data pagination and filtering
+- Implement versioning
+- HATEOS links
 - api vaersioning
 - idempotency
   - handler
@@ -236,3 +354,4 @@ Helps prevent security vulnerabilities by pinning versions
 
 - [Microservices architecture style](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/microservices)
 - [Learn Docker by building a Microservice by Dave Kerr](https://dwmkerr.com/learn-docker-by-building-a-microservice/)
+- [ExpressJS express.json() Function](https://www.geeksforgeeks.org/web-tech/express-js-express-json-function/)
