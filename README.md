@@ -1,14 +1,15 @@
 # Ticketflow
 
-Playground event ticketing distributed system for browsing events, purchase tickets, and process payments.
+Playground event ticketing distributed system for browsing events, purchase tickets, and process payments to learn distributed systems concepts through hands-on experience.
 
-Done with **break and fix it approach** i.e. steps on how requirements are built, what issues they solve and how it works starting with a monolith and gradually breaking it into distributed components progressively.
+Done with a **build, break then fix** approach i.e. steps on how requirements are built, what issues they solve and how it works starting with a monolith and gradually breaking it into distributed components progressively.
 
 ## Table of Contents
 
-- [How to run](#how-to-run)
+- [Prerequisites](#prerequisites)
+- [How To Run](#how-to-run)
 - [Requirements](#requirements)
-- [Steps - How it works](#steps)
+- [Steps - How it works/How to reproduce this project](#steps)
   - [1 - Monolith](#1---monolith)
   - [2 - Scaling 1: Queues + Redis Locking + API improvements](#2---scaling-1-queues--redis-locking--api-improvements)
   - [3 - Scaling 2: Microservices](#3---scaling-2-microservices)
@@ -17,9 +18,7 @@ Done with **break and fix it approach** i.e. steps on how requirements are built
 
 ---
 
-## How To Run
-
-### Prerequisites
+## Prerequisites
 - **Node.js** (v18+ recommended)
   ```bash
   node --version  # should show v18.x.x or higher
@@ -36,19 +35,24 @@ Done with **break and fix it approach** i.e. steps on how requirements are built
 - **cURL** or **HTTPie** (for API testing)
 - **Artillery** (for load testing - installed via npm)
 
-### monolith
+---
+
+## How To Run
+
+### Running Monolith, Steps 1-2
 ```bash
+# Terminal 1
+
 # clone the repo
 git clone https://github.com/oyinetare/ticketflow.git
 cd ticketflow
 
-# terminal 1
 cd monolith
 npm install
 docker-compose up -d
 npm run dev
 
-# terminal 2 - test basic functionality
+# Terminal 2 - test basic functionality
 
 # get all events
 curl http://localhost:3000/api/v2/events
@@ -61,11 +65,53 @@ curl -X POST http://localhost:3000/api/v2/tickets/purchase \
 # stop docker
 docker-compose down
 ```
-### microservices
+### Running Microservices, Steps 3-4
+
+---
 
 ## Requirements
+### Functional (What the system does)
+1. Event management
+	- View all avaialable events (search events)
+	- View event details
+	- Create event
 
-## Steps - How it works
+2. Confirm ticket purchase
+	- Purchase event tickets
+	- Reserve tickets (prevent others from buying same tickets)
+	- Process payment
+	- Confirm ticket purchase
+	- Handle failed payments gracefully
+
+3. User Features
+	- View purchased tickets
+	- Get ticket confirmation
+	- View purchase history
+
+4. Inventory Management
+	- Track available tickets per event
+	- Prevent overselling (no negative inventory)
+	- Release tickets if payment fails
+
+### Non-Functional (How well the system works)
+
+1. Reliability: The system should prioritize availability i.e. 99.9% uptime (8.7 hours downtime/year) for searching & viewing events, but should prioritize consistency for booking events (no double booking, never sell same ticket twice, charge exactly once per ticket, no lost tickets or payments). Eventual consistency is OK (few seconds delay)
+
+2. Fault tolerant: System stays up if one service fails
+
+3. Scalability: The system should be scalable and able to handle high throughput in the form of popular events (10 million users, one event), Add more servers during peak times, Database Scaling(Handle millions of tickets/events), Queue Scaling(Process thousands of payments per minute)
+
+4. Performance: The system should have low latency search (i.e. Response Time of Browse events < 200ms - 500ms) & purchasing < 3 seconds (including payment)
+
+5. The system is read heavy, and thus needs to be able to support high read throughput (100:1), Handle 1000 concurrent users
+
+6. High concurrency
+
+7. Security: No storing credit cards, Rate limiting to prevent abuse for API, Data Privacy(Secure user information)
+
+---
+
+## Steps - How it works/How to reproduce this project
 
 - [x] 1 — Monolith
 - [x] 2 — Scaling 1: Queues + Redis Locking + API improvements
@@ -74,9 +120,10 @@ docker-compose down
 
 ### 1 - Monolith
 
-- what part of the requirements does it solve
-- what problems are introduced
+- folder structure
 - architecture diagram
+- what part of the requirements does it solve
+- what problems are introduced, leading up to next section
 
 - #### flow
 
@@ -182,6 +229,8 @@ Speeds up CI/CD builds
 Helps prevent security vulnerabilities by pinning versions
 
 ### 4 - Advanced patterns: Saga & Event Sourcing
+
+---
 
 ## References
 
