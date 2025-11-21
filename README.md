@@ -128,7 +128,7 @@ docker-compose down
 #### Architecture Diagram
 
 ```
-	  client
+	client
 		|
  API (/api/events, /api/tickets)
 		|
@@ -176,6 +176,8 @@ export interface Payment {
 ```
 
 #### DB
+
+**SqLite In-Memory Database**
 
 ```SQL
 TABLE events (
@@ -236,40 +238,170 @@ GET  /api/tickets/user/:userId  # get users tickets
 		- error handler
 	- init db
 - Event management: View all avaialable events (search events) + View event details +  Create event
-  - getAllEvents, getEventById, createEvent
+  - routes call asynchronous functions in service i.e. await getAllEvents, await getEventById, await createEvent
+  - services return Promise<> running either `SELECT FROM <table>` or `INSERT INTO <table>`
 - Ticket purchasing: Purchase event tickets + Process payment + Confirm ticket
-  1. check event availability **ISSUE**: causes RACE CONDITION
-  2. create ticket
-  3. process payment **ISSUE**: SLOW & causes problems
-  4. Update ticket status & inventorypurchase
+  1. check event availability (eventService.getEventById) **ISSUE**: causes RACE CONDITION
+  2. create ticket (ticketService.createTicket) with status pending
+  3. process payment (paymentService.processPayment) **ISSUE**: SLOW & causes problems
+    - simulate api call to payment gateway (this will cause race conditions, multiple attempts to pay) & simulate occasional payment failures
+    - create payment with status completed
+  4. Update ticket status to confirmed or cancelled (ticketService.updateTicketStatus)
+  5. Update event tickets count (eventService.updateEventTickets)
+
+#### Test endpoints
+```bash
+# get all events
+curl http://localhost:3000/api/v2/events
+
+# purchase a ticket
+curl -X POST http://localhost:3000/api/v2/tickets/purchase \
+  -H "Content-Type: application/json" \
+  -d '{"eventId": "3", "userId": "test-user"}'
+```
 
 #### Tech Stack used here
 - Node.js
-- Sqlite for db
+- SQLite for db
 
 #### Notes
-- using nouns for resource names & plural nouns to name collection URIs., i.e.  `/events` instead of `/create-events`. The verbal action on a URI is already implied by the HTTP `GET`, `POST`, `PUT`, `PATCH`, and `DELETE` methods
-- relationships kept simple and flexible
-- no API versioning for now
--  Interface types dont mirror the internal structure of db, so theres less risk of increasing the attack surface and might lead to data leakage in API and  API is an abstraction of the database
-- Implement asynchronous methods in services
+##### API
+  - using nouns for resource names & plural nouns to name collection URIs., i.e.  `/events` instead of `/create-events`. The verbal action on a URI is already implied by the HTTP `GET`, `POST`, `PUT`, `PATCH`, and `DELETE` methods
+  - relationships kept simple and flexible
+  - no API versioning for now
+  -  Interface types dont mirror the internal structure of db, so theres less risk of increasing the attack surface and might lead to data leakage in API and  API is an abstraction of the database
+  - Implement asynchronous methods in services
+
+##### Why SQL In-Memory DB?
+1. ACID Transactions are Critical
+```sql
+BEGIN TRANSACTION;
+-- Check availability
+SELECT availableTickets FROM events WHERE id = ? FOR UPDATE;
+-- Create ticket
+INSERT INTO tickets (eventId, userId, status) VALUES (?, ?, 'pending');
+-- Update inventory
+UPDATE events SET availableTickets = availableTickets - 1 WHERE id = ?;
+-- Process payment
+INSERT INTO payments (ticketId, amount, status) VALUES (?, ?, 'completed');
+COMMIT;
+```
+
+2. Strong Consistency Requirements
+```typescript
+// With SQL, this is guaranteed to be accurate
+const event = await db.query(
+  "SELECT COUNT(*) as soldTickets FROM tickets WHERE eventId = ? AND status = 'confirmed'",
+  [eventId]
+);
+```
+
+- NoSQL often provides eventual consistency
+- For ticket inventory, you need immediate consistency
+- Can't risk overselling due to replication lag
+
+3. Complex Relational Queries
+```sql
+-- Find all events a user has attended with payment details
+SELECT e.name, e.date, t.purchaseDate, p.amount, p.status
+FROM tickets t
+JOIN events e ON t.eventId = e.id
+JOIN payments p ON p.ticketId = t.id
+WHERE t.userId = ?
+ORDER BY e.date DESC;
+```
+
+- Events → Tickets → Payments → Users all interconnected
+- NoSQL would require multiple queries or denormalization
+
+4. Financial Data Integrity
+```sql
+-- Ensure payment reconciliation
+SELECT
+  SUM(p.amount) as totalRevenue,
+  COUNT(DISTINCT t.id) as ticketsSold
+FROM payments p
+JOIN tickets t ON p.ticketId = t.id
+WHERE p.status = 'completed' AND t.eventId = ?;
+```
+
+- Payment records must be 100% accurate
+- SQL constraints prevent orphaned records
+- Foreign keys ensure referential integrity
+
+Using NoSQL db i.e. The Cost of Getting It Wrong in this situation
+- Overselling = Angry customers, refunds, reputation damage
+- Payment inconsistencies = Financial liability, audit failures
+- Lost transactions = Revenue loss, customer frustration
+- SQL's strong guarantees make these disasters much less likely.
+
+For the core ticketing logic (inventory, payments, orders), SQL is the clear winner because:
+
+- ACID transactions prevent race conditions
+- Strong consistency ensures accurate inventory
+- Relational model matches the domain perfectly
+- Financial data requires bulletproof integrity
 
 #### Issues in design i.e. what problems are introduced, leading up to next section
- - Race conditions when checking event availability
-- Processing payment SLOW & causes problems
+- Race condition happens in process of checking for available tickets  and actually decrementing them as slow payment processing creates large time window for concurrent requests
+```
+test-race-condition.js
+Test race condition
+	get initial ticket count for event
+	create array of 10 concurrent purchase attempts
+		get event and check availability
+		if not exists return 404, no event
+		if no available tickets return 400, no tickets left
+		if event exists and available events
+			try 
+				create ticket with status pending
+				process payment
+					simulate api call to payment gateway (this will cause race conditions, multiple attempts to pay) & simulate occasional payment failures
+					create payment with status completed
+				update ticket status to confirmed
+				update inventory by decrement available tickets for event
+			 catch paymentError
+				update ticket status to cancelled and throw paymentError
+	wait for them all to complete
+	get success count 
+	get final ticket count for event
+	there’s a race condition if success count isn’t same as (initial - final)
+
+—————————————————————
+
+The Critical Race Condition Path
+Thread 1: Checks availableTickets = 5 ✓
+Thread 2: Checks availableTickets = 5 ✓  // Same value!
+Thread 3: Checks availableTickets = 5 ✓  // Still same!
+...
+Thread 1: Creates ticket (pending)
+Thread 2: Creates ticket (pending)
+Thread 1: Processes payment (1-3 seconds)
+Thread 2: Processes payment (1-3 seconds)
+Thread 1: Updates availableTickets to 4
+Thread 2: Updates availableTickets to 4  // Should be 3!
+
+Initial count: Get starting availableTickets
+Concurrent attempts: 10 parallel purchases
+Success tracking: Count successful purchases
+Validation: successCount ≠ (initial - final) proves overselling
+```
+
 - Lost tickets when payments fail
 - Multiple users can buy the same ticket
+- No Transaction Boundaries as each operation is independent, allowing partial failures
+- Phantom Tickets because tickets can be created even when inventory is exhausted
 - Database locks cause timeouts
 - Inconsistent inventory counts
-- Using sqlite whcih doesnt scale well in distributed systems
-- different from client/server SQL database engines such as MySQL, Oracle, PostgreSQL, or SQL Server since SQLite is trying to solve a different problem
-- Client/server SQL database engines strive to implement a shared repository of enterprise data and emphasize **scalability, concurrency, centralization, and control** whereas SQLite strives to provide local data storage for individual applications and devices. SQLite **emphasizes economy, efficiency, reliability, independence, and simplicity.**
-- SQLite does not compete with client/server databases. SQLite competes with fopen().
-- SQLite database requires no administration, it works well in devices that must operate without expert human support
-- Client/server database engines are designed to live inside a lovingly-attended datacenter at the core of the network. SQLite works there too, but SQLite also thrives at the edge of the network, fending for itself while providing fast and reliable data services to applications that would otherwise have dodgy connectivity
-- SQLite is a good fit for use in "internet of things" devices.
-- Generally speaking, any site that gets fewer than 100K hits/day should work fine with SQLite
-- **Reference**: https://sqlite.org/whentouse.html
+- Using SQLite in memory DB whcih doesnt scale well in distributed systems
+  - different from client/server SQL database engines such as MySQL, Oracle, PostgreSQL, or SQL Server since SQLite is trying to solve a different problem
+  - Client/server SQL database engines strive to implement a shared repository of enterprise data and emphasize **scalability, concurrency, centralization, and control** whereas SQLite strives to provide local data storage for individual applications and devices. SQLite **emphasizes economy, efficiency, reliability, independence, and simplicity.**
+  - SQLite does not compete with client/server databases. SQLite competes with fopen().
+  - SQLite database requires no administration, it works well in devices that must operate without expert human support
+  - Client/server database engines are designed to live inside a lovingly-attended datacenter at the core of the network. SQLite works there too, but SQLite also thrives at the edge of the network, fending for itself while providing fast and reliable data services to applications that would otherwise have dodgy connectivity
+  - SQLite is a good fit for use in "internet of things" devices.
+  - Generally speaking, any site that gets fewer than 100K hits/day should work fine with SQLite
+  - **Reference**: https://sqlite.org/whentouse.html
 
 ---
 
