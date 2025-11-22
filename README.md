@@ -125,9 +125,16 @@ docker-compose down
 - what part of the requirements does it solve
 - what problems are introduced, leading up to next sectio -->
 
-#### Architecture Diagram
+#### features
+- REST API for events (create, list, get)
+- Ticket purchase endpoint (synchronous)
+- Mock payment processing
+- load testing
+<!-- - No authentication (keep it simple) -->
 
-```
+#### Architecture
+
+<!-- ```
 	client
 		|
  API (/api/events, /api/tickets)
@@ -135,9 +142,18 @@ docker-compose down
 	services (event service, payment service, ticket service)
 		|
 	sqlite db
+``` -->
+```
+Client → API → Services → SQLite
 ```
 
-#### Core Entities
+##### Tech Stack used here
+- TypeScript + Node.js + Express
+- SQLite for db (easy to start, single file DB)
+- Simple in-memory payment processing
+
+
+##### Core Entities
 
 - Event
 - Ticket
@@ -175,7 +191,7 @@ export interface Payment {
 }
 ```
 
-#### DB
+##### DB
 
 **SqLite In-Memory Database**
 
@@ -213,7 +229,7 @@ TABLE payments (
 )
 ```
 
-#### API or System Interface
+##### API or System Interface
 
 ```bash
 GET  /api/events                # get all events
@@ -223,13 +239,13 @@ POST /api/tickets/purchase      # purchase ticket
 GET  /api/tickets/user/:userId  # get users tickets
 ```
 
-#### Services
+##### Services
 
 - Event Service
 - Payment Service
 - Ticket Service
 
-#### Flow: What part of the requirements does it solve
+##### Flow: What part of the requirements does it solve
 - simple Express app
 	- Middleware
 		- cors
@@ -249,7 +265,7 @@ GET  /api/tickets/user/:userId  # get users tickets
   4. Update ticket status to confirmed or cancelled (ticketService.updateTicketStatus)
   5. Update event tickets count (eventService.updateEventTickets)
 
-#### Test endpoints
+##### Test endpoints
 ```bash
 # get all events
 curl http://localhost:3000/api/v2/events
@@ -259,10 +275,6 @@ curl -X POST http://localhost:3000/api/v2/tickets/purchase \
   -H "Content-Type: application/json" \
   -d '{"eventId": "3", "userId": "test-user"}'
 ```
-
-#### Tech Stack used here
-- Node.js
-- SQLite for db
 
 #### Notes
 ##### API
@@ -342,6 +354,12 @@ For the core ticketing logic (inventory, payments, orders), SQL is the clear win
 - Relational model matches the domain perfectly
 - Financial data requires bulletproof integrity
 
+- **Sqlite**
+  - **Sqlite was not designed for Client/Server Applications**: If there are many client programs sending SQL to the same database over a network, then use a client/server database engine instead of SQLite. SQLite will work over a network filesystem, but because of the latency associated with most network filesystems, performance will not be great. Also, file locking logic is buggy in many network filesystem implementations (on both Unix and Windows). If file locking does not work correctly, two or more clients might try to modify the same part of the same database at the same time, resulting in corruption. Because this problem results from bugs in the underlying filesystem implementation, there is nothing SQLite can do to prevent it.
+
+  - **High Concurrency**: SQLite supports an unlimited number of simultaneous readers, but it will only allow one writer at any instant in time. For many situations, this is not a problem. Writers queue up. Each application does its database work quickly and moves on, and no lock lasts for more than a few dozen milliseconds. But there are some applications that require more concurrency, and those applications may need to seek a different solution.
+
+
 #### Issues in design i.e. what problems are introduced, leading up to next section
 - Race condition happens in process of checking for available tickets  and actually decrementing them as slow payment processing creates large time window for concurrent requests
 ```
@@ -388,7 +406,7 @@ Validation: successCount ≠ (initial - final) proves overselling
 ```
 
 - Lost tickets when payments fail
-- Multiple users can buy the same ticket
+- Multiple users can buy the same ticket, double booking
 - No Transaction Boundaries as each operation is independent, allowing partial failures
 - Phantom Tickets because tickets can be created even when inventory is exhausted
 - Database locks cause timeouts
@@ -405,71 +423,151 @@ Validation: successCount ≠ (initial - final) proves overselling
 
 ---
 
+
+
 ### 2 - Scaling 1: Queues + Redis Locking + API improvements
 
+#### features
+- better error handling
+- Implement versioning in API: imporvements to API
+- Redis for distributed locking
+- Bull queue for async payment processing
+- Idempotency keys for payments: imporvements to API
+- query result caching to speed up frequently repeated search queries and reduce load on our search infrastructure?: imporvements to API
+- Implement data pagination and filtering: imporvements to API
+- HATEOS link: imporvements to API
 
-## ** How do we improve the booking experience by reserving tickets?: Dealing w contention
-- pessimistic locking
-- status & expiration time with cron
-- mpicit status with tatus and time expiration
-- distirbuted lock with TTL
+#### Architecture
+```
+Client → API → [Redis Lock] → Services → Queues → SQLite
+```
 
-## Scaling reads: How is the view API going to scale to support 10s of millions of concurrent requests during popular events?
-- cachign, lb, horizontal scaling
+#### Issues in previous - How are you addreessing each issue**
+- Race conditions - Multiple users checking/buying simultaneously
+- Inconsistent inventory counts - Stale reads lead to wrong counts
+- Slow payments - 1-3 second payment processing blocks everything
+- Phantom Tickets - Tickets created even when inventory exhausted
+- Lost tickets when payments fail - No proper rollback
+- Double booking - Same ticket sold multiple times
+- Duplicate charges
+- Database locks/timeouts
 
-## ** Real time updates; How will the system ensure a good user experience during high-demand events with millions simultaneously booking tickets?
+**Ideas**
+- How do we improve the booking experience by reserving tickets?: Dealing w contention (Race condition)
+  1. pessimistic locking
+  2. status & expiration time with cron
+  3. mpicit status with tatus and time expiration
+  4. distirbuted lock with TTL
+    - Redis for distributed locking with TTL to prevent race conditions
+
+- How to prefent duplicate charges
+  1. Idempotent payment handling: Use Idempotency keys for payments
+  2. Proper rollback on failures
+
+- How can you speed up frequently repeated search queries and reduce load on our search infrastructure?
+  1. implement caching trategies using redis and memcached
+  2. impoklement query result caching and edge caching techniques
+
+#### Decided Solutions, i.e. imoprovements to design based on issues above**
+
+1. Distributed Locking (Redis with TTL) Solves:
+- Race conditions
+- Double booking
+- Inconsistent inventory counts
+- Phantom Tickets
+
+2. Async Payment Queue (Bull/Redis) Solves:
+- Slow payments
+- Database locks/timeouts
+- Partially helps with scalability
+
+3. Idempotency for Payments Solves:
+- Duplicate charges
+- Partial failure recovery
+
+4. Redis cache
+- speed up frequently repeated search queries and reduce load on our search infrastructure?
+
+##### Notes
+**How idempotency works**
+- Idempotent payment handling: Use Idempotency keys for payments
+  - idempotency
+    - handler
+    - if not POST, then next
+    - get idempotency key from redis cache or generate if one doesnt exist
+      - Generate key based on user, endpoint, and request body
+    - check for cached response with idempotency key
+    - store original json method using redis cache
+    - ovveride json method to cache response
+    - attach key to request for use in handlers
+- Proper rollback on failures, Partial failure recovery
+
+
+#### Issues in design i.e. what problems are introduced, leading up to next section
+Problem appears: Single database bottleneck
+
+*Move SQLite down here*
+
+1. Single Database Bottleneck (SQLite)
+
+🔴 Still can't handle true horizontal scaling
+🔴 Write operations still bottlenecked
+🔴 No replication/failover
+
+2. Additional Issues in Phase 2:
+markdown**New Problems in Phase 2:**
+
+1. **Distributed System Complexity**
+   - Lock failures/deadlocks
+   - Redis single point of failure
+   - Queue processing delays
+
+2. **Consistency Challenges**
+   - Cache invalidation complexity
+   - Eventual consistency between Redis/SQLite
+   - Lock orphaning if process crashes
+
+3. **Operational Overhead**
+   - Need to monitor Redis, queues, cron jobs
+   - Debugging distributed transactions
+   - Managing TTLs and expirations
+
+4. **Still Limited by SQLite**
+   - No read replicas
+   - No sharding capability
+   - File-based = single server
+
+5. **Real time updates: How will the system ensure a good user experience during high-demand events with millions simultaneously booking tickets? +  Reduceunnecessary API call + Fair access to tickets**
 - SSE for real time seat updates
 - Virtual waiting queue for xtrmemly popular events
 
-## ** How can you improve search to ensure we meet our low latency requirements?
+6. **How can you improve search to ensure we meet our low latency requirements?**
 - indexinfg & sql qurery ptimization
 - full-text idnexes in db
 - se a full text  search engine liem elastic db
 
-## How can you speed up frequently repeated search queries and reduce load on our search infrastructure?
-- implement caching trategies using redis and memcached
-- impoklement query result caching and edge caching techniques
+7. **Scaling reads: How is the view API going to scale to support 10s of millions of concurrent requests during popular events?**
+- cachign, lb, horizontal scaling
 
-## API improvement
-- Implement asynchronous methods
-- Implement data pagination and filtering
-- Implement versioning
-- HATEOS link
+8. Ticket Reservation System (Status + Expiration)
+Solves:
 
+✅ Lost tickets when payments fail
+✅ Phantom Tickets
+✅ Better UX during high contention
 
-#### Imporovements to design based on issues above
+9. No Transaction Boundaries - Operations aren't atomic
+10. Database locks cause timeouts - SQLite locks entire DB
+11. No scalability - SQLite single-file limitation
 
-- **Sqlite**
-  - **Sqlite nto designed for Client/Server Applications**: If there are many client programs sending SQL to the same database over a network, then use a client/server database engine instead of SQLite. SQLite will work over a network filesystem, but because of the latency associated with most network filesystems, performance will not be great. Also, file locking logic is buggy in many network filesystem implementations (on both Unix and Windows). If file locking does not work correctly, two or more clients might try to modify the same part of the same database at the same time, resulting in corruption. Because this problem results from bugs in the underlying filesystem implementation, there is nothing SQLite can do to prevent it.
+---
 
-  - **High Concurrency**: SQLite supports an unlimited number of simultaneous readers, but it will only allow one writer at any instant in time. For many situations, this is not a problem. Writers queue up. Each application does its database work quickly and moves on, and no lock lasts for more than a few dozen milliseconds. But there are some applications that require more concurrency, and those applications may need to seek a different solution.
-
-- **Proposed solution**
-- Redis for distributed locking to prevent race conditions
-- Bull for Queue-based async processing to improve response times
-- Idempotency to prevent duplicate charges
-- Proper rollback on failures
-
-### 3 - Scaling 2: Microservices
+### 3 - Scaling 2: Microservices: Scales to 50,000 users/day
 
 - move to PostgreSQL
-
-
-- Implement asynchronous methods
-- Implement data pagination and filtering
-- Implement versioning
-- HATEOS links
-- api vaersioning
-- idempotency
-  - handler
-  - if not POST, then next
-  - get idempotency key from redis cache or generate if one doesnt exist
-    - Generate key based on user, endpoint, and request body
-  - check for cached response with idempotency key
-  - store original json method using redis cache
-  - ovveride json method to cache response
-  - attach key to request for use in handlers
-- links
+- Separate services can scale independently
+- Payment service gets more servers
+- New capabilities: Multi-region, analytics, real-time updates
 
 The lockfile is important because it:
 
@@ -477,6 +575,8 @@ Ensures consistent installs across different machines
 Locks specific versions of all dependencies and sub-dependencies
 Speeds up CI/CD builds
 Helps prevent security vulnerabilities by pinning versions
+
+---
 
 ### 4 - Advanced patterns: Saga & Event Sourcing
 
@@ -487,3 +587,10 @@ Helps prevent security vulnerabilities by pinning versions
 - [Microservices architecture style](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/microservices)
 - [Learn Docker by building a Microservice by Dave Kerr](https://dwmkerr.com/learn-docker-by-building-a-microservice/)
 - [ExpressJS express.json() Function](https://www.geeksforgeeks.org/web-tech/express-js-express-json-function/)
+- [SQLite Docs](https://sqlite.org/index.html)
+- [Hello Interview - Design Ticketmaster](https://www.hellointerview.com/learn/system-design/problem-breakdowns/ticketmaster)
+<!-- - [Distributed Systems Patterns - Martin Fowler](https://martinfowler.com/articles/patterns-of-distributed-systems/)
+- [Saga Pattern - Chris Richardson](https://microservices.io/patterns/data/saga.html)
+- [Event Sourcing - Martin Fowler](https://martinfowler.com/eaaDev/EventSourcing.html)
+- [Circuit Breaker - Martin Fowler](https://martinfowler.com/bliki/CircuitBreaker.html)
+- [Chaos Engineering - Principles of Chaos](https://principlesofchaos.org/) -->

@@ -1,5 +1,6 @@
 import sqlite3 from "sqlite3";
 
+// force SQLite database to exist purely in memory using special filename ":memory:"
 const db = new sqlite3.Database(":memory:", (err) => {
   if (err) {
     console.error("Error opening database:", err);
